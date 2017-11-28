@@ -1,0 +1,77 @@
+---
+title: "Project"
+author: "Yangmingqi (Simon) Guo"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+market_origin <- read.csv("market_index_clean.csv")
+first <- market_origin[1,]
+market <- market_origin[2:3104,]
+market$AAPL2 <- market_origin[,"AAPL"][1:3103]
+market$Return <- (market$AAPL - market$AAPL2)/market$AAPL2
+```
+
+```{r}
+library(lubridate)
+market$Date <- market_origin$Date[2:3104]
+date <- market$Date
+first <- date[1]
+day <- c()
+for(i in 1:length(date)) {
+  diff = round(difftime(date[i], first))
+  day = c(day, diff)
+}
+market$Date <- day
+fit <- lm(Return~., data = market)
+summary(fit)
+```
+
+##Backwark elimination:
+
+```{r}
+#drop EEM
+summary(update(fit, .~.-EEM))
+```
+
+```{r}
+#drop Date
+summary(update(fit, .~.-Date-EEM))
+```
+
+
+```{r}
+#drop Date
+summary(update(fit, .~.-Date-EEM-BNDGLB))
+```
+
+```{r}
+#drop Date
+summary(update(fit, .~.-Date-EEM-BNDGLB-SPX))
+```
+
+
+##Based on the Backward method we choose model "Return ~ AAPL + VIX + SPGSCITR + AAPL2"
+
+##Now we try using step
+
+```{r}
+nullmodel <- lm(Return~1, data=market)
+fullmodel <- lm(Return~., data=market)
+step(nullmodel, scope=list(upper=fullmodel), direction="both")
+```
+
+##Suprisingly it's the same one... Return ~ VIX + AAPL2 + AAPL + SPGSCITR
+
+
+
+
+
+
+
+
+
