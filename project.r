@@ -45,7 +45,7 @@ summary(fullmodel)
 VIX_only <- lm(return~VIX, data = market)
 summary(VIX_only)
 
-## Modified Automated Model Selection
+## Modified Automated Model Selection------------------------------------------
 nullmodel <- lm(return~1, data = market)
 step(nullmodel,scope=list(upper=fullmodel),direction="both")
 ## THIS RETURNS REALLY GOOD RESULTS WITH NO TIMEOUT!!
