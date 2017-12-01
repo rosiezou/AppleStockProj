@@ -67,6 +67,13 @@ step(nullmodel, scope=list(upper=fullmodel), direction="both")
 
 ##Suprisingly it's the same one... Return ~ VIX + AAPL2 + AAPL + SPGSCITR
 
+```{r}
+test_model <- lm(Return ~ VIX + AAPL2 + AAPL + SPGSCITR, data = market)
+plot(test_model)
+summary(test_model)
+plot(market$Return, residuals(test_model), xlab = "Return ratio", ylab = "Residuals")
+abline(a = 0, b= 0, col = "red")
+```
 
 
 
