@@ -98,11 +98,30 @@ dwtest(test_model2, alternative=c("two.sided"), data=market.tr)
 
 
 ```{r fig.width=10, fig.height=8}
-market.tr$wts = 1/(fitted(lm(abs(residuals(test_model2))~fitted(test_model2)))^2)
-tmodel = lm(lReturn~lAAPL + lAAPL2, weights=wts, data=market.tr)
+market.tr1 = market
+market.tr1$lReturn = exponent(market$Return,3)
+market.tr1$lAAPL = exponent(market$AAPL,3)
+market.tr1$lAAPL2 = exponent(market$AAPL2,3)
+
+market.tr1$Return = NULL
+market.tr1$AAPL = NULL
+market.tr1$AAPL2 = NULL
+
+fullmodel3 = lm(lReturn~., data = market.tr1)
 par(mfrow=c(2,2))
-plot(tmodel)
-summary(tmodel)
+plot(fullmodel3)
+summary(fullmodel3)
 ```
 
-## WLS doesn't make much of a difference (which makes sense as only half of the residual plot is fanned out).
+
+```{r}
+drop1(fullmodel3, test="F")
+drop1(update(fullmodel3, .~.-EEM), test="F")
+drop1(update(fullmodel3, .~.-EEM-Date), test="F")
+drop1(update(fullmodel3, .~.-EEM-Date-SPX), test="F")
+drop1(update(fullmodel3, .~.-EEM-Date-SPX-VIX), test="F")
+drop1(update(fullmodel3, .~.-EEM-Date-SPX-VIX-SPGSCITR), test="F")
+```
+
+## Results: lReturn ~ lAAPL + lAAPL2
+
