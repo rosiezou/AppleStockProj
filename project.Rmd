@@ -67,18 +67,21 @@ step(nullmodel, scope=list(upper=fullmodel), direction="both")
 
 ##Suprisingly it's the same one... Return ~ VIX + AAPL2 + AAPL + SPGSCITR
 
-```{r fig.width=10, fig.height=8}
+```{r}
 test_model <- lm(Return ~ VIX + AAPL2 + AAPL + SPGSCITR, data = market)
-par(mfrow=c(2,2))
 plot(test_model)
 summary(test_model)
 plot(market$Return, residuals(test_model), xlab = "Return ratio", ylab = "Residuals")
 abline(a = 0, b= 0, col = "red")
 ```
 
-
-
-
+```{r}
+poly_model <- lm(Return~ log(VIX) + log(AAPL2) + log(AAPL) + log(SPGSCITR), data = market)
+plot(poly_model)
+summary(poly_model)
+plot(market$Return, residuals(poly_model), xlab = "Return ratio", ylab = "Residuals")
+abline(a = 0, b= 0, col = "red")
+```
 
 
 
