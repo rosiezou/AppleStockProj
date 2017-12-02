@@ -1,0 +1,54 @@
+---
+title: "Data Exploration"
+author: "Azoacha Forcheh, 20558994"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Loading the data}
+n = nrow(market_original)
+market_original = read.csv('market_index_clean.csv')
+
+market = market_original[2:n,]
+market[,"AAPL2"] = market_original$AAPL[1:(n-1)]
+market[,"Return"] = (market$AAPL / market_original$AAPL[1:(n-1)]) - 1
+marketSTD = market
+marketSTD[,"STDReturn"] = market$Return/sqrt(market_original$VIX[1:(n-1)])
+
+covars = colnames(market)[2:ncol(market)]
+```
+
+```{r TS Plots, fig.height=10}
+par(mfrow=c(4,2))
+for (name in colnames(market)[2:ncol(market)]) {
+  ts.plot(market[,name], 
+          gpars=list(ylab=name,xlab='Day'))
+}
+```
+
+Time series plot of the return seems to follow a separate pattern from the covariates.
+
+```{r Autocorrelation Plots, fig.height=5, fig.width=7}
+par(mfrow=c(4,2))
+for (name in covars) {
+  acf(market[,name], main=name, lag.max=10,
+      xlab=paste0("Lag - ",name))
+}
+```
+
+## All covariates have significant positive autocorrelation, while the return has no autocorrelation.
+
+```{r fig.height=5, fig.width=7}
+par(mfrow=c(4,2))
+for (name in covars) {
+  hist(market[,name], xlab=name,
+       main=paste("Histogram of ",name))
+}
+```
+
+
+## AAPL, AAPL2 and VIX are positively skewed and may need transformation.
+

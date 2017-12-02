@@ -1,0 +1,108 @@
+---
+title: "Testing Updated Models"
+author: "Azoacha Forcheh, 20558994"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+market_origin <- read.csv("market_index_clean.csv")
+first <- market_origin[1,]
+market <- market_origin[2:3104,]
+market$AAPL2 <- market_origin[,"AAPL"][1:3103]
+market$Return <- (market$AAPL - market$AAPL2)/market$AAPL2
+```
+
+```{r}
+library(lubridate)
+market$Date <- market_origin$Date[2:3104]
+date <- market$Date
+first <- date[1]
+day <- c()
+for(i in 1:length(date)) {
+  diff = round(difftime(date[i], first))
+  day = c(day, diff)
+}
+market$Date <- day
+fullmodel <- lm(Return~., data = market)
+summary(fullmodel)
+```
+
+
+```{r}
+# Helper function to avoid NA's when applying power 
+#   to vector with negative values
+exponent <- function(a, pow) (abs(a)^pow)*sign(a)
+```
+
+## BoxCox transformation to deal with nonlinearity
+## Using 1/3 due to shape of residual-fitted plot
+```{r fig.width=10, fig.height=8}
+market.tr = market
+market.tr$lReturn = exponent(market$Return,2/3)
+market.tr$lAAPL = exponent(market$AAPL,1/3)
+market.tr$lAAPL2 = exponent(market$AAPL2,1/3)
+
+market.tr$Return = NULL
+market.tr$AAPL = NULL
+market.tr$AAPL2 = NULL
+
+fullmodel2 = lm(lReturn~., data = market.tr)
+par(mfrow=c(2,2))
+plot(fullmodel2)
+summary(fullmodel2)
+```
+
+## This full model gives a higher adjusted R^2 than the full model on the untransformed data.
+
+## Backward elimination on transformed dataframe
+```{r}
+drop1(fullmodel2, test="F")
+drop1(update(fullmodel2, .~.-VIX), test="F")
+drop1(update(fullmodel2, .~.-VIX-SPGSCITR), test="F")
+drop1(update(fullmodel2, .~.-VIX-SPGSCITR-EEM), test="F")
+drop1(update(fullmodel2, .~.-VIX-SPGSCITR-EEM-Date-BNDGLB-SPX), test="F")
+```
+
+## Based on this, we choose lReturn ~ lAAPL + lAAPL2
+
+## Model selection with step for comparison
+```{r}
+nullmodel2 = lm(lReturn~1, data=market.tr)
+step(nullmodel2, scope=list(upper=fullmodel2), direction="both")
+```
+
+## Different result: we choose lReturn ~ VIX + SPX + SPGSCITR, which gives significantly worse results
+
+```{r fig.width=10, fig.height=8}
+test_model2 = lm(lReturn ~ lAAPL + lAAPL2, data=market.tr)
+par(mfrow=c(2,2))
+plot(test_model2)
+summary(test_model2)
+```
+
+
+```{r}
+# Autocorrelation tests
+library(lmtest)
+acf(residuals(test_model2), main="Residuals", lag.max=10)
+dwtest(test_model2, alternative=c("two.sided"), data=market.tr)
+```
+
+## Autocorrelation in the response has still been explained away - plot indicates no autocorrelation, and 
+##   Durbin-Watson test shows we have evidence to accept null hypothesis at 95% significance level.
+
+
+```{r fig.width=10, fig.height=8}
+market.tr$wts = 1/(fitted(lm(abs(residuals(test_model2))~fitted(test_model2)))^2)
+tmodel = lm(lReturn~lAAPL + lAAPL2, weights=wts, data=market.tr)
+par(mfrow=c(2,2))
+plot(tmodel)
+summary(tmodel)
+```
+
+## WLS doesn't make much of a difference (which makes sense as only half of the residual plot is fanned out).

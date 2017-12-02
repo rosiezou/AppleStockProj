@@ -1,0 +1,80 @@
+---
+title: "Model Checking"
+author: "Azoacha Forcheh, 20558994"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+market_origin <- read.csv("market_index_clean.csv")
+first <- market_origin[1,]
+market <- market_origin[2:3104,]
+market$AAPL2 <- market_origin[,"AAPL"][1:3103]
+market$Return <- (market$AAPL - market$AAPL2)/market$AAPL2
+```
+
+```{r}
+library(lubridate)
+market$Date <- market_origin$Date[2:3104]
+date <- market$Date
+first <- date[1]
+day <- c()
+for(i in 1:length(date)) {
+  diff = round(difftime(date[i], first))
+  day = c(day, diff)
+}
+market$Date <- day
+fit <- lm(Return~., data = market)
+summary(fit)
+```
+
+```{r}
+nullmodel <- lm(Return~1, data=market)
+fullmodel <- lm(Return~., data=market)
+step(nullmodel, scope=list(upper=fullmodel), direction="both")
+```
+
+
+```{r}
+# Check for multicollinearity
+# Date , SPX , BNDGLB , EEM, and AAPL2 have VIF >> 10 (consider dropping)
+library(mctest)
+imcdiag(market[ , !(names(market) %in% c('Return'))], market$Return)
+```
+
+```{r fig.width=10, fig.height=8}
+test_model <- lm(Return ~ VIX + AAPL2 + AAPL + SPGSCITR, data = market)
+par(mfrow=c(2,2))
+plot(test_model)
+summary(test_model)
+#plot(market$Return, residuals(test_model), xlab = "Return ratio", ylab = "Residuals")
+#abline(a = 0, b= 0, col = "red")
+```
+
+```{r fig.width=10, fig.height=8}
+library(car)
+crPlots(m=test_model, main="Partial Residual Plots", 
+        ylab="Partial Residual", smooth=T)
+```
+
+## Notes:
+## No real influential cases in Residuals/Leverage plot; can barely see Cook's distance lines. No influential outliers.
+## Normal Q-Q is light-tailed, and hence the consequences of non-normality is not serious and can be ignored.
+## None of the covariates are significantly deviating from the straight line. However, residuals plot looks like a y = -x^3 graph,
+##  and this curvature indicates the need for a Boxcox transformation.
+
+```{r}
+# Autocorrelation tests
+library(lmtest)
+acf(residuals(test_model), main="Residuals", lag.max=10)
+dwtest(test_model, alternative=c("two.sided"), data=market)
+```
+
+# Autocorrelation in the response has been explained away - plot indicates no autocorrelation, and 
+#   Durbin-Watson test shows we have evidence to accept null hypothesis at 95% significance level.
+
+
+
