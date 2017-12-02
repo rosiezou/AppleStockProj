@@ -81,6 +81,100 @@ plot(poly_model)
 summary(poly_model)
 plot(market$Return, residuals(poly_model), xlab = "Return ratio", ylab = "Residuals")
 abline(a = 0, b= 0, col = "red")
+plot(log(market$AAPL), residuals(poly_model), xlab = "Return ratio", ylab = "Residuals")
+# abline(a = 0, b= 0, col = "red")
+plot(log(market$AAPL2), residuals(poly_model), xlab = "Return ratio", ylab = "Residuals")
+# abline(a = 0, b= 0, col = "red")
+plot(log(market$VIX), residuals(poly_model), xlab = "Return ratio", ylab = "Residuals")
+# abline(a = 0, b= 0, col = "red")
+plot(log(market$SPGSCITR), residuals(poly_model), xlab = "Return ratio", ylab = "Residuals")
+# abline(a = 0, b= 0, col = "red")
+
+
+## Pearson's Second Skewness Coefficient function
+pearson_sk2 <- function(y){
+  3 * (mean(y) - median(y)) / sd(y)
+}
+
+## Power Transformation function
+powerfun <- function(y, alpha){
+  if (alpha != 0){
+    y^alpha
+  } else {
+    log(y)
+  }
+}
+
+createPearsonPowerfun <- function(pop_vector) {
+  ## Return this function
+  function(alpha) { 
+    pearson_sk2(powerfun(pop_vector, alpha))
+  }
+}
+
+uniroot(createPearsonPowerfun(log(market$VIX)), interval=c(-1,0), extendInt = "yes")$root
+
+VIXtr <- log(market$VIX)^-2
+hist(VIXtr)
+appl2tr <- log(market$AAPL2)
+appltr <- log(market$AAPL)
+spgfscitrtr <- log(market$SPGSCITR)
+hist(spgfscitrtr)
+mod1 <- lm(market$Return~ VIXtr + appl2tr + appltr + spgfscitrtr)
+plot(mod1)
+summary(mod1)
+
+gen_K_fold <- function(k, pop){
+  Ssamples <- vector(mode="list", length = k)
+  Tsamples <- vector(mode="list", length = k)
+  bin_size = nrow(pop)/k
+  for (i in 1:k){
+    test_int <- seq(from=(i-1)*bin_size+1, to=i*bin_size)
+    rest_int1 <- seq(from=0, to=(i-1)*bin_size)
+    rest_int2 <- seq(from=i*bin_size+1, to=nrow(pop))
+    Tsamples[[i]] <- data.frame(pop[test_int,])
+    Tsamples[[i]]
+    Ssample <- data.frame(pop[rest_int1,])
+    if (i != k){
+      Ssample <- rbind(Ssample, data.frame(pop[rest_int2,]))
+    }
+    Ssamples[[i]] <- data.frame(Ssample)
+  }
+  output <- vector(mode="list", length = 2)
+  output[[1]] = Ssamples
+  output[[2]] = Tsamples
+  output
+}
+
+All_Samples <- gen_K_fold(5, market)
+Ssamples <- All_Samples[[1]]
+Tsamples <- All_Samples[[2]]
+all_models <- vector(mode="list", length=5)
+all_predicts <- vector(mode="list", length=5)
+for (i in 1:5){
+  df <- data.frame(Ssamples[i])
+  logvixroot <- log(df$VIX)^-2
+  logappl <- log(df$AAPL)
+  logappl2 <- log(df$AAPL2)
+  logspgs <- log(df$SPGSCITR)
+  returntr <- df$Return
+  all_models[[i]] = lm(returntr~logvixroot+logappl+logappl2+logspgs)
+  newdf = Tsamples[i]
+  all_predicts[[i]] = predict(all_models[[i]], newdf)
+}
+
+for (i in 1:5){
+  summary(all_models[[i]])
+  plot(all_predicts[[i]], residuals(all_models[[i]]))
+}
+
+summary(all_models[[1]])
+summary(all_models[[2]])
+summary(all_models[[3]])
+summary(all_models[[4]])
+summary(all_models[[5]])
+
+
 ```
 
 
