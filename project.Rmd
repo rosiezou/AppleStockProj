@@ -129,16 +129,29 @@ gen_K_fold <- function(k, pop){
   Tsamples <- vector(mode="list", length = k)
   bin_size = nrow(pop)/k
   for (i in 1:k){
-    test_int <- seq(from=(i-1)*bin_size+1, to=i*bin_size)
-    rest_int1 <- seq(from=0, to=(i-1)*bin_size)
-    rest_int2 <- seq(from=i*bin_size+1, to=nrow(pop))
+    # test_int <- seq(from=(i-1)*bin_size+1, to=i*bin_size)
+    # rest_int1 <- seq(from=0, to=(i-1)*bin_size)
+    # rest_int2 <- seq(from=i*bin_size+1, to=nrow(pop))
+    
+    test_int <- sample(nrow(pop), bin_size)
+    sort(test_int)
+    rest_int <- c()
+    for (j in 1:nrow(pop)){
+      if (!is.element(j, test_int)){
+        rest_int <- c(rest_int, j)
+      }
+    }
+    
     Tsamples[[i]] <- data.frame(pop[test_int,])
     Tsamples[[i]]
-    Ssample <- data.frame(pop[rest_int1,])
-    if (i != k){
-      Ssample <- rbind(Ssample, data.frame(pop[rest_int2,]))
-    }
-    Ssamples[[i]] <- data.frame(Ssample)
+    # Ssample <- data.frame(pop[rest_int1,])
+    # if (i != k){
+    #   Ssample <- rbind(Ssample, data.frame(pop[rest_int2,]))
+    # }
+    # Ssamples[[i]] <- data.frame(Ssample)
+    
+    Ssamples[[i]] <- pop[rest_int,]
+    
   }
   output <- vector(mode="list", length = 2)
   output[[1]] = Ssamples
@@ -151,6 +164,7 @@ Ssamples <- All_Samples[[1]]
 Tsamples <- All_Samples[[2]]
 all_models <- vector(mode="list", length=5)
 all_predicts <- vector(mode="list", length=5)
+all_errors <- c()
 for (i in 1:5){
   df <- data.frame(Ssamples[i])
   logvixroot <- log(df$VIX)^-2
@@ -161,6 +175,7 @@ for (i in 1:5){
   all_models[[i]] = lm(returntr~logvixroot+logappl+logappl2+logspgs)
   newdf = Tsamples[i]
   all_predicts[[i]] = predict(all_models[[i]], newdf)
+  all_errors <-c(all_errors, sum((returntr-all_predicts[[i]])^2))
 }
 
 for (i in 1:5){
@@ -168,13 +183,16 @@ for (i in 1:5){
   plot(all_predicts[[i]], residuals(all_models[[i]]))
 }
 
+ave(all_errors)
+
 summary(all_models[[1]])
 summary(all_models[[2]])
 summary(all_models[[3]])
 summary(all_models[[4]])
 summary(all_models[[5]])
 
-
+modsimiple <- lm(Return~1, data = market)
+summary(modsimiple)
 ```
 
 
