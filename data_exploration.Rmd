@@ -12,18 +12,21 @@ knitr::opts_chunk$set(echo = TRUE)
 n = nrow(market_original)
 market_original = read.csv('market_index_clean.csv')
 
-market = market_original[2:n,]
-market[,"AAPL2"] = market_original$AAPL[1:(n-1)]
-market[,"Return"] = (market$AAPL / market_original$AAPL[1:(n-1)]) - 1
-marketSTD = market
-marketSTD[,"STDReturn"] = market$Return/sqrt(market_original$VIX[1:(n-1)])
+first <- market_origin[1,]
+market <- market_origin[2:3104,]
+market$AAPL2 <- market_origin[,"AAPL"][1:3103]
+market$Return <- (market$AAPL - market$AAPL2)/market$AAPL2
+market$VIX2 = market_origin[,"VIX"][1:3103]
+market$Return = market$Return/sqrt(market$VIX2)
+```
 
-covars = colnames(market)[2:ncol(market)]
+```{r}
+covars = c("AAPL","SPX","VIX","SPGSCITR","BNDGLB","EEM", "AAPL2", "VIX2")
 ```
 
 ```{r TS Plots, fig.height=10}
 par(mfrow=c(4,2))
-for (name in colnames(market)[2:ncol(market)]) {
+for (name in colnames(market)) {
   ts.plot(market[,name], 
           gpars=list(ylab=name,xlab='Day'))
 }
@@ -41,10 +44,10 @@ for (name in covars) {
 
 ## All covariates have significant positive autocorrelation, while the return has no autocorrelation.
 
-```{r fig.height=5, fig.width=7}
+```{r fig.height=10, fig.width=7}
 par(mfrow=c(4,2))
 for (name in covars) {
-  hist(market[,name], xlab=name,
+  hist(market[,name]^(-1), xlab=name,
        main=paste("Histogram of ",name))
 }
 ```

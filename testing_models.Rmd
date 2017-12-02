@@ -15,6 +15,8 @@ first <- market_origin[1,]
 market <- market_origin[2:3104,]
 market$AAPL2 <- market_origin[,"AAPL"][1:3103]
 market$Return <- (market$AAPL - market$AAPL2)/market$AAPL2
+market$VIX2 = market_origin[,"VIX"][1:3103]
+market$Return = market$Return/sqrt(market$VIX2)
 ```
 
 ```{r}
@@ -28,8 +30,13 @@ for(i in 1:length(date)) {
   day = c(day, diff)
 }
 market$Date <- day
+```
+
+```{r fig.width=10, fig.height=8}
 fullmodel <- lm(Return~., data = market)
 summary(fullmodel)
+par(mfrow=c(2,2))
+plot(fullmodel)
 ```
 
 
@@ -43,15 +50,19 @@ exponent <- function(a, pow) (abs(a)^pow)*sign(a)
 ## Using 1/3 due to shape of residual-fitted plot
 ```{r fig.width=10, fig.height=8}
 market.tr = market
-market.tr$lReturn = exponent(market$Return,2/3)
-market.tr$lAAPL = exponent(market$AAPL,1/3)
-market.tr$lAAPL2 = exponent(market$AAPL2,1/3)
+market.tr$lReturn = market$Return^(2/3)
+market.tr$lAAPL = market$AAPL^(1/3)
+market.tr$lAAPL2 = market$AAPL2^(1/3)
+market.tr$VIX = market$VIX^(-1)
+market.tr$VIX2 = market$VIX2^(-1)
 
-market.tr$Return = NULL
-market.tr$AAPL = NULL
+#market.tr$Return = NULL
+#market.tr$AAPL = NULL
 market.tr$AAPL2 = NULL
+market.tr$VIX = NULL
+market.tr$VIX2 = NULL
 
-fullmodel2 = lm(lReturn~., data = market.tr)
+fullmodel2 = lm(Return~., data = market.tr)
 par(mfrow=c(2,2))
 plot(fullmodel2)
 summary(fullmodel2)
@@ -100,12 +111,12 @@ dwtest(test_model2, alternative=c("two.sided"), data=market.tr)
 ```{r fig.width=10, fig.height=8}
 market.tr1 = market
 market.tr1$lReturn = exponent(market$Return,3)
-market.tr1$lAAPL = exponent(market$AAPL,3)
-market.tr1$lAAPL2 = exponent(market$AAPL2,3)
+market.tr1$lAAPL = exponent(market$AAPL,1/3)
+market.tr1$lAAPL2 = exponent(market$AAPL2,-1/3)
 
 market.tr1$Return = NULL
-market.tr1$AAPL = NULL
-market.tr1$AAPL2 = NULL
+#market.tr1$AAPL = NULL
+#market.tr1$AAPL2 = NULL
 
 fullmodel3 = lm(lReturn~., data = market.tr1)
 par(mfrow=c(2,2))
@@ -123,5 +134,12 @@ drop1(update(fullmodel3, .~.-EEM-Date-SPX-VIX), test="F")
 drop1(update(fullmodel3, .~.-EEM-Date-SPX-VIX-SPGSCITR), test="F")
 ```
 
-## Results: lReturn ~ lAAPL + lAAPL2
+## Results: lReturn ~ BNDGLB + lAAPL + lAAPL2
+
+```{r fig.width=10, fig.height=8}
+test_model3 = lm(lReturn ~ BNDGLB + lAAPL + lAAPL2, data=market.tr1)
+par(mfrow=c(2,2))
+plot(test_model3)
+summary(test_model3)
+```
 
