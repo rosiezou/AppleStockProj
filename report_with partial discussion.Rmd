@@ -55,7 +55,7 @@ Additionally, we considered how the distribution of the independent variables co
 
 \begin{section}{Discussion}
 
-Following questions are copied from the given project instructions:
+Following questions are copied from the given project instructions.
 
 \begin{enumerate}
 \item{}
@@ -66,12 +66,12 @@ According to the results from Rcodes below, we can check the $p$-values for the 
 \item{}
 \textit {Does including information for several days ago have much of an impact on tomorrow’s return, if we account for today’s information?}
 
-Adding information for several days ago would be equivalent to taking the average of the several days' $Return$ values, since for each $Return$ value it is been calculated based on the day's and previous day's AAPL stock prices. So if we take several days' $Return$ values' expected average, we would end up adding several days' information into our consideration. If we plot out the histograms of original Return and the Return with previous 5 days average, then we can see that there's no effective impact on the general trend of the values of tomorrow's return, but the additional information would make the return values more concentrated, in this way that the tomorrow's return would have less skewness in terms of data distribution.
+As shown in the R code in the Appendix, after attempting to instead of using previous day's price to calculate return, we take the average of the previous 5 days' stock prices and still fitting the same transformed model. Comparing to original transformed model, the performance of the model seems to be better in temrs of coefficient of determination and the AIC values, while there is a small increase in adjusted $R^2$ and a small decrease for AIC. So it seems that from our attempt, including information for several days ago would give a better model fitting the tomorrow's return, while we are still accounting for today's information.
 
 \item{}
 \textit {Does the model predict accurately?}
 
-Based on our results on cross validation, the model performs generally well for prediction accuracy. Although in the summary of the model, the coefficient of determination is not ideally high, as we have discussed in class and the fact that $R^2$ can be affected by other factors (such as number of variables that are involved), so it would be acceptable to say that the model predicts the value with roughly accurate results.
+Based on our results on our k-fold cross validation with the comparsion of training and testing sets of data, the model performs generally well for prediction accuracy. Although in the summary of the model, the coefficient of determination is not ideally high, as we have discussed in class and the fact that $R^2$ can be affected by other factors (such as number of variables that are involved), so it would be acceptable to say that the model predicts the future value with reasonably accurate results. 
 
 \item{}
 \textit {Are there any coefficients with high $p$-values retained in the final model? If so, why?}
@@ -81,12 +81,17 @@ According our models, fortunately we don't have any coefficients with high $p$-v
 \item{}
 \textit {Are any of the regression assumptions of the final model violated? If so, which ones?}
 
-
+This question has been mentioned along with the Model Diagnostics part. All of the regression assumptions seems to be satisfied by our final model, instead of there is a little bit bias on the independence of residuals.
 
 \item{}
 \textit {What are the possible deficiencies of the final model? How the model can be improved?}
 
+As discussed in previous analysis part, and also by looking at the residual plots and the summary of aborted models, the data has a tendency to be fitting a non-linear model. For example, there is a curved trend for the residual against fitted values plot, even after the chosen transformation. And notice that from the R results we can see that the adjusted and unadjusted coefficients of determination is very small and not close to 1 at all, which is not ideal as well. To improve the fittness of the model, it might make more sense to fit a non-linear model instead. Or adding more covariates to the model, but that would include the possiblity of overfitting the model.  
 
+\item{}
+\textit {Are there any outlying observations that might be appropriate to remove?}
+
+By judging from the results of residual plots and leverage plots, it can be seen that there seems to have several outliers concentrated around the year 2008, which has the index 1370. The possible reason for the outlying results could be the finacial crisis during that time that would cause the drop in variates' values, but AAPL stock price didn't be affected that much, possible explanation could be the release of new series of iPhone which sort of stablize the change in stock price for Apple. Under such circumstance, there might exist possible reasons for the unexpected change, here it would be more reasonable to ignore the outlying results, as it is not really "unexpected" or it is abnormal. Therefore it would not be appropriate to remove.
 
 \end{enumerate}
 \end{section}
@@ -199,13 +204,24 @@ summary(transformed_model)
 
 ### The impact of including more data from previous days
 ```{r}
-## suppose we include previous 5 days data
-original_return <- market$Return
-new_return <- c()
-for(i in 1:(length(original_return)-5)){
-  set <- c(original_return[i], original_return[i+1], original_return[i+2], original_return[i+3], original_return[i+4])
-  new_return <- c(new_return, mean(set))
+## suppose we include previous 5 days data information
+
+## attempt to using the average value of previous 5 days AAPL
+AAPL5 <- c()
+for (i in 1:(nrow(market_origin) - 4)){
+  set <- c(market_origin$AAPL[i], market_origin$AAPL[i+1], market_origin$AAPL[i+2], market_origin$AAPL[i+3], market_origin$AAPL[i+4])
+  AAPL5 <- c(AAPL5, mean(set))
 }
-hist(original_return)
-hist(new_return)
+new_AAPL = market$AAPL[4:length(market$AAPL)]
+new_Return <- (new_AAPL - AAPL5)/new_AAPL
+new_VIXtr = VIXtr[4:length(VIXtr)]
+new_SPGSCITRtr = SPGSCITRtr[4:length(SPGSCITRtr)]
+new_EEM = market$EEM[4:length(market$EEM)]
+new_transformed_model <- lm(new_Return~new_VIXtr+new_SPGSCITRtr+new_EEM+AAPL5)
+summary(new_transformed_model)
+AIC(new_transformed_model)
+AIC(transformed_model)
 ```
+
+
+
