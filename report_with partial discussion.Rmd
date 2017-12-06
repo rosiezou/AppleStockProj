@@ -1,0 +1,211 @@
+---
+title: \bf{Project B Report}
+output: 
+  pdf_document: 
+    latex_engine: xelatex
+---
+
+\begin{section}{Summary}
+The objective of this report is to model the Apple Stock return rate, defined as $ret.AAPL_i = \frac{AAPL_i - AAPL_{i-1}}{AAPL_{i-1}}$, based on key metrics such as volatility, $S\&P$ 500 Index, and etc. 
+
+To model the return rate, our group has surveyed a wide range of models including an autoregressive model, linear models from automated model selection, as well as transformed linear models. 
+
+From the autoregressive model, we noticed the heteroscedascity caused by autocorrelation, which led us to determine that directly modelling the stock price is not the most ideal way to model the return rate. We also found discrepancy between the adjusted R-Squared value and the residual plots in the backfitted model, which will be further discussed later in this report. Through our investigation, our group has concluded that there is no truly ideal linear model for the Apple Stock return rate. Nevertheless, we were able to identify the inadequate models and gain insights on why those models did not work.
+\end{section}
+
+\begin{section}{Model Selection}
+The first model to be considered is the autoregressive model, which directly models the stock price of day $i$ using the price from day $i-1$ and has the following expression: $$ AAPL_i = \beta_0 + \beta_1 AAPL_{i-1}$$
+
+The residual plot from the fitted model has a clearly heteroscedastic property, since the residuals take on a fan shape.
+
+\begin{center}\includegraphics[width=90mm]{autoregressive_residual_vs_fitted.png}\end{center}
+
+We tried to resolve the heteroscedascity issue by implementing a Weighted Least Squares autoregressive model but the results remained the same (see Appendix for full code and plot comparison). After some research, it turns out that this is an irreducible property of the autoregressive model because the data is serially correlated. We realized that we needed something better than directly modelling the price. Hence we decided to directly model the return which, to re-iterate, is defined as $ret.AAPL_i = \frac{AAPL_i - AAPL_{i-1}}{AAPL_{i-1}}$.
+
+Correlation between the coefficients was also expected from the data. Since it is a time-series financial data set, we knew and verified that time is correlated to variables such as the Apple Stock Price and the $S \& P$ 500 Index. The detailed matrix can be found in the Appendix section. We decided that this wasn't too much of an issue since it is an inevitable part of any time-series data.
+
+Moving on from the autoregressive model, we then considered automated model selecting using forward selection, backward elemination, and stepwise selection, from which we obtained the following models (full code in Appendix):
+
+
+\textbf{Forward selection: } $Return = \beta_0 + \beta_1VIX + \beta_2AAPL2 + \beta_3AAPL + \beta_4SPGSCITR$
+
+\textbf{Backward elimination: } $Return = \beta_0 + \beta_1AAPL + \beta_2VIX + \beta_3SPGSCITR + \beta_4AAPL2$
+
+\textbf{Stepwise selection: } $Return = \beta_0 + \beta_1VIX + \beta_2AAPL2 + \beta_3AAPL + \beta_4SPGSCITR$
+
+
+Interestingly, all selection methods returned the same model. Before we proceeded any further, we consulted with Prof. Zeng. After receiving helpful advice from the professor, we realized that since $Return$ is calculated as a function of $AAPL$ and $AAPL2$, the two variables cannot be included in the same model. We then adjusted the full model by excluding the variable $AAPL$, hence only keeping the previous-day price, and obtained the results below:
+
+
+\textbf{Forward selection: } $ Return = \beta_0 + \beta_1VIX + \beta_2AAPL2 + \beta_3SPGSCITR + \beta_4EEM$
+
+\textbf{Backward elimination: } $ Return = \beta_0 + \beta_1VIX + \beta_2AAPL2 + \beta_3SPGSCITR + \beta_4EEM$
+
+\textbf{Stepwise selection: } $ Return = \beta_0 + \beta_1VIX + \beta_2AAPL2 + \beta_3SPGSCITR + \beta_4EEM$
+
+We decided to further analyze this model in the model diagnostics section.
+
+Additionally, we considered how the distribution of the independent variables could affect the model fit. Since both $VIX$ and $SPGSCITR$ had heavily skewed histograms, we decided to log-transform the variables to make the distributions resemble a normal curve and obtained the following model:
+\textbf{Transformed model: } $ Return = \beta_0 + \beta_1(log(VIX)^{-2}) + \beta_2AAPL2 + \beta_3(log(SPGSCITR)) + \beta_4EEM$. This will be the second model to be discussed in the model diagnostics section.
+
+\end{section}
+
+\begin{section}{Model Diagnostics}
+\end{section}
+
+\begin{section}{Discussion}
+
+Following questions are copied from the given project instructions:
+
+\begin{enumerate}
+\item{}
+\textit {What are the most important factors affecting Apple Stock returns?}
+
+According to the results from Rcodes below, we can check the $p$-values for the significance of coefficients with the corresponding covariates. For the transformed model, $VIX$ term has the lowest $p$-value as shown in the summary, which means it would make largest change to the response if it drops out of the model; while $AAPL2$ term, which is the pervious day's price, and $SPGSCITR$ term's coefficients ealso have relatively small $p$-values. For our selected model before transformation, $VIX$ has the lowest p-value as well, and again $AAPL2$ and $SPGSCITR$ terms' coefficients have considerably small $p$-values too.  So based on our models, $VIX$ would be the most important factor, and $SPGSCITR$ and $AAPL2$ are considerably significant as well. 
+
+\item{}
+\textit {Does including information for several days ago have much of an impact on tomorrow’s return, if we account for today’s information?}
+
+Adding information for several days ago would be equivalent to taking the average of the several days' $Return$ values, since for each $Return$ value it is been calculated based on the day's and previous day's AAPL stock prices. So if we take several days' $Return$ values' expected average, we would end up adding several days' information into our consideration. If we plot out the histograms of original Return and the Return with previous 5 days average, then we can see that there's no effective impact on the general trend of the values of tomorrow's return, but the additional information would make the return values more concentrated, in this way that the tomorrow's return would have less skewness in terms of data distribution.
+
+\item{}
+\textit {Does the model predict accurately?}
+
+Based on our results on cross validation, the model performs generally well for prediction accuracy. Although in the summary of the model, the coefficient of determination is not ideally high, as we have discussed in class and the fact that $R^2$ can be affected by other factors (such as number of variables that are involved), so it would be acceptable to say that the model predicts the value with roughly accurate results.
+
+\item{}
+\textit {Are there any coefficients with high $p$-values retained in the final model? If so, why?}
+
+According our models, fortunately we don't have any coefficients with high $p$-values retained in the final model. All of the coefficients have descent $p$-values that are lower than 0.05.
+
+\item{}
+\textit {Are any of the regression assumptions of the final model violated? If so, which ones?}
+
+
+
+\item{}
+\textit {What are the possible deficiencies of the final model? How the model can be improved?}
+
+
+
+\end{enumerate}
+\end{section}
+
+\newpage
+\begin{section}{Appendix}
+Below is a collection of R code used in this report.
+\end{section}
+
+### Pre-process the data
+```{r}
+market_origin <- read.csv("market_index_clean.csv")
+first <- market_origin[1,]
+market <- market_origin[2:3104,]
+market$AAPL2 <- market_origin[,"AAPL"][1:3103]
+market$Return <- (market$AAPL - market$AAPL2)/market$AAPL2
+```
+
+### Full Model
+```{r}
+library(lubridate)
+market$Date <- market_origin$Date[2:3104]
+date <- market$Date
+first <- date[1]
+day <- c()
+for(i in 1:length(date)) {
+  diff = round(difftime(date[i], first))
+  day = c(day, diff)
+}
+market$Date <- day
+full_model <- lm(Return~., data = market)
+summary(full_model)
+```
+
+### Null Model
+```{r}
+null_model <- lm(Return~1, data = market)
+summary(null_model)
+```
+
+### Autoregressive Model
+```{r}
+autoregressive_model <- lm(AAPL~AAPL2, data = market)
+plot(fitted(autoregressive_model),residuals(autoregressive_model), 
+     main = "Residual vs. Fitted", xlab = "Fitted Values", ylab = "Residuals")
+```
+
+### WLS Autoregressive Model
+```{r}
+wts <-1/(fitted(lm(abs(residuals(autoregressive_model))~fitted(autoregressive_model)))^2)
+wls <- lm(market$AAPL~market$AAPL2, weights = wts)
+par(mfrow=c(1,2))
+plot(fitted(autoregressive_model), autoregressive_model$residuals, 
+     main="unweighted", xlab = "fitted", ylab = "residuals")
+plot(fitted(wls), wls$residuals, main="weighted", xlab = "fitted", ylab = "residuals")
+```
+
+There is no apparent difference between the weighted least squares and the un-weighted autoregressive models.
+
+### Correlation Matrix
+```{r}
+cor(market)
+```
+
+### Forward Selection
+```{r}
+step(null_model, scope = list(upper=full_model), direction="forward")
+summary(lm(formula = Return ~ VIX + AAPL2 + AAPL + SPGSCITR, data = market))
+```
+
+### Backward Elimination
+```{r}
+step(full_model, scope = list(lower=null_model), direction="backward")
+summary(lm(formula = Return ~ AAPL + VIX + SPGSCITR + AAPL2, data = market))
+```
+
+### Stepwise Selection
+```{r}
+step(null_model, scope = list(upper=full_model), direction="both")
+```
+
+
+### Forward Selection without AAPL
+```{r}
+full_model <- lm(Return~SPX+VIX+SPGSCITR+BNDGLB+EEM+AAPL2, data = market)
+step(null_model, scope = list(upper=full_model), direction="forward")
+```
+
+### Backward Elimination without AAPL
+```{r}
+step(full_model, scope = list(lower=null_model), direction="backward")
+```
+
+### Stepwise Selection without AAPL
+```{r}
+step(null_model, scope = list(upper=full_model), direction="both")
+```
+
+### Log-transformed model from stepwise selection results
+```{r}
+## note that the VIX needed to be raised to the -2, after the log transformation
+##  in order to obtain a distribution close to the Gaussian curve
+VIXtr <- log(market$VIX)^-2
+hist(VIXtr)
+SPGSCITRtr <- log(market$SPGSCITR)
+hist(SPGSCITRtr)
+transformed_model <- lm(market$Return~VIXtr+SPGSCITRtr+market$EEM+market$AAPL2)
+summary(transformed_model)
+```
+
+### The impact of including more data from previous days
+```{r}
+## suppose we include previous 5 days data
+original_return <- market$Return
+new_return <- c()
+for(i in 1:(length(original_return)-5)){
+  set <- c(original_return[i], original_return[i+1], original_return[i+2], original_return[i+3], original_return[i+4])
+  new_return <- c(new_return, mean(set))
+}
+hist(original_return)
+hist(new_return)
+```
