@@ -29,6 +29,12 @@ for(i in 1:length(date)) {
   day = c(day, diff)
 }
 market$Date <- day
+
+## Splitting the data into a training and test set (80/20)
+n = length(market[,1])
+split = round(0.8*n)
+market_train = market[1:split,]
+market_test = market[(split+1):n,]
 ```
 
 
@@ -64,17 +70,17 @@ diagnostic_plots <- function(model) {
 ```
 
 
-```{r Diagnostics on the Autoregressive Model, fig.height=4, fig.width=6}
-auto_regressive_model <- lm(AAPL~AAPL2, data=market)
+```{r Diagnostics on the Autoregressive Model, fig.height=6, fig.width=8}
+auto_regressive_model <- lm(AAPL~AAPL2, data=market_train)
 #summary(auto_regressive_model)
 diagnostic_plots(auto_regressive_model)
 ```
 
 
-```{r Diagnostics on the Final Model, fig.height=4, fig.width=6}
-market.tr = market
-market.tr$VIXtr = log(market$VIX)^(-2)
-market.tr$SPGSCITRtr = log(market$SPGSCITR)
+```{r Diagnostics on the Final Model, fig.height=6, fig.width=8}
+market.tr = market_train
+market.tr$VIXtr = log(market_train$VIX)^(-2)
+market.tr$SPGSCITRtr = log(market_train$SPGSCITR)
 final_model <- lm(Return~VIXtr+AAPL2+SPGSCITRtr+EEM, data=market.tr)
 #summary(final_model)
 
@@ -101,17 +107,17 @@ dev.off()
 fm_dwtest = dwtest(final_model, alternative=c("two.sided"), 
                    data=market.tr)
 arm_dwtest = dwtest(auto_regressive_model, 
-                    alternative=c("two.sided"), data=market)
+                    alternative=c("two.sided"), data=market_train)
 fm_dwtest$statistic
 arm_dwtest$statistic
 fm_dwtest$p.value
 arm_dwtest$p.value
 ```
 
-```{r Cross Validation echo=FALSE, message=FALSE}
+```{r include=FALSE, message=FALSE, warning=FALSE, fig.show=FALSE}
 library("lattice")
 library("DAAG")
-arm_cv = cv.lm(data=market, form.lm=auto_regressive_model,
+arm_cv = cv.lm(data=market_train, form.lm=auto_regressive_model,
                m=10, printit=F)
 fm_cv = cv.lm(data=market.tr, form.lm=final_model,
               m=10, printit=F)
@@ -121,10 +127,11 @@ nrmse <- function(mse, ylim) {
   sqrt(mse)/yrange
 }
 
-nrmse(attr(arm_cv, "ms"), range(market$AAPL)) 
+tst = nrmse(attr(arm_cv, "ms"), range(market_train$AAPL)) 
 nrmse(attr(fm_cv, "ms"), range(market.tr$Return))
 ```
 
+`r tst`
 
 ```{r Parameter Estimates and CI of Final Model}
 ci_df <- data.frame(round(confint(final_model), 4))

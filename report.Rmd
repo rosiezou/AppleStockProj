@@ -15,19 +15,6 @@ header-includes:
   - \usepackage{subcaption}
 ---
 
-\begin{section}{Delete this section before submitting}
-These are the three questions specific to Project B. We need to find appropriate sections to answer these questions (and make it clear that we're answering them so that the TA gives us marks)
-\begin{enumerate}
-\item{}
-What are the most important factors affecting Apple Stock returns?
-\item{}
-Does including information for several days ago have much of an impact on tomorrow’s
-return, if we account for today’s information?
-\item{}
-Does the model predict accurately?
-\end{enumerate}
-\end{section}
-
 \begin{section}{Summary}
 The objective of this report is to model the Apple Stock return rate, defined as $ret.AAPL_i = \frac{AAPL_i - AAPL_{i-1}}{AAPL_{i-1}}$, based on key metrics such as volatility, $S\&P$ 500 Index, and etc. 
 
@@ -79,11 +66,11 @@ We first look into some diagnostic plots of the two models for the sake of resid
 
 \begin{figure}[h]
 \begin{subfigure}{.5\textwidth}
-  \includegraphics[width=90mm]{diagnostics/arm_covar_residuals.png}
+  \includegraphics[width=85mm]{diagnostics/arm_covar_residuals.png}
   \caption{Autoregressive Model}
 \end{subfigure}%
 \begin{subfigure}{.5\textwidth}
-  \includegraphics[width=90mm]{diagnostics/fm_covar_residuals.png}
+  \includegraphics[width=85mm]{diagnostics/fm_covar_residuals.png}
   \caption{Automated Model}
 \end{subfigure}
 \end{figure}
@@ -92,11 +79,11 @@ There is a strong linear trend in the partial residual plot of the autoregressiv
 
 \begin{figure}[h]
 \begin{subfigure}{.5\textwidth}
-  \includegraphics[width=90mm]{diagnostics/arm_model_plots.png}
+  \includegraphics[width=85mm]{diagnostics/arm_model_plots.png}
   \caption{Autoregressive Model}
 \end{subfigure}%
 \begin{subfigure}{.5\textwidth}
-  \includegraphics[width=90mm]{diagnostics/fm_model_plots.png}
+  \includegraphics[width=85mm]{diagnostics/fm_model_plots.png}
   \caption{Automated Model}
 \end{subfigure}
 \end{figure}
@@ -106,11 +93,11 @@ The residuals of the autoregressive model are heterodastic as the plot of the re
 
 \begin{figure}[h]
 \begin{subfigure}{.5\textwidth}
-  \includegraphics[width=90mm]{diagnostics/arm_acf_residuals.png}
+  \includegraphics[width=85mm]{diagnostics/arm_acf_residuals.png}
   \caption{Autoregressive Model}
 \end{subfigure}%
 \begin{subfigure}{.5\textwidth}
-  \includegraphics[width=90mm]{diagnostics/fm_acf_residuals.png}
+  \includegraphics[width=85mm]{diagnostics/fm_acf_residuals.png}
   \caption{Automated Model}
 \end{subfigure}
 \end{figure}
@@ -119,13 +106,13 @@ We then looked into the last assumption of linear regression models: independenc
 
 
 ```{r echo=FALSE, message=FALSE}
+library(lmtest)
 market_origin <- read.csv("market_index_clean.csv")
 first <- market_origin[1,]
 market <- market_origin[2:3104,]
 market$AAPL2 <- market_origin[,"AAPL"][1:3103]
 market$Return <- (market$AAPL - market$AAPL2)/market$AAPL2
 
-library(lubridate)
 market$Date <- market_origin$Date[2:3104]
 date <- market$Date
 first <- date[1]
@@ -136,17 +123,28 @@ for(i in 1:length(date)) {
 }
 market$Date <- day
 
-auto_regressive_model <- lm(AAPL~AAPL2, data=market)
-market.tr = market
-market.tr$VIXtr = log(market$VIX)^(-2)
-market.tr$SPGSCITRtr = log(market$SPGSCITR)
-final_model <- lm(Return~VIXtr+AAPL2+SPGSCITRtr+EEM, data=market.tr)
+## Splitting the data into a training and test set (80/20)
+n <- length(market[,1])
+split <- round(0.8*n)
+market_train <- market[1:split,]
+market_test <- market[(split+1):n,]
 
-library(lmtest)
-fm_dwtest = dwtest(final_model, alternative=c("two.sided"), 
-                   data=market.tr)
-arm_dwtest = dwtest(auto_regressive_model, 
-                    alternative=c("two.sided"), data=market)
+market.tr <- market
+market.tr$VIXtr <- log(market$VIX)^(-2)
+market.tr$SPGSCITRtr <- log(market$SPGSCITR)
+market.tr_train <- market.tr[1:split,]
+market.tr_test <- market.tr[(split+1):n,]
+
+auto_regressive_model <- lm(AAPL~AAPL2, data=market_train)
+final_model <- lm(Return~VIXtr+AAPL2+SPGSCITRtr+EEM, data=market.tr_train)
+
+fm_dwtest <- dwtest(final_model, alternative=c("two.sided"), 
+                   data=market.tr_train)
+arm_dwtest <- dwtest(auto_regressive_model, 
+                    alternative=c("two.sided"), data=market_train)
+
+arm_cd_limit = round(1/round(0.8*n), 6)
+fm_cd_limit = round(4/round(0.8*n), 6)
 ```
 
 ```{r echo=FALSE, message=FALSE}
@@ -166,26 +164,52 @@ kable(dwtest_dt, "latex") %>%
                notation = "symbol")
 ```
 
-The next concern we addressed was potential outliers and high-leverage cases. In both Cook's Distance plots below, there are no concerning observations that have a distance greater than 1, but most observations have a Cook's Distance greater than $p/n$, which is $0.0013$ and $0.00032$ for the automated and the autoregressive model, respectively. However, we see in both Residuals versus Leverage plots that there are no cases that are influential to the regression results. All points are well enough within the Cook's distance lines that said lines do not appear on either plot.
+The next concern we addressed was potential outliers and high-leverage cases. In both Cook's Distance plots below, there are no concerning observations that have a distance greater than 1, but most observations have a Cook's Distance greater than $\frac{p}{n}$, which is 0.001612 and 0.000403 for the automated and the autoregressive model, respectively. However, we see in both Residuals versus Leverage plots that there are no cases that are influential to the regression results. All points are well enough within the Cook's distance lines that said lines do not appear on either plot.
 
 \begin{figure}[h]
 \begin{subfigure}{.5\textwidth}
-  \includegraphics[width=90mm]{diagnostics/arm_leverage_plots.png}
+  \includegraphics[width=85mm]{diagnostics/arm_leverage_plots.png}
   \caption{Autoregressive Model}
 \end{subfigure}%
 \begin{subfigure}{.5\textwidth}
-  \includegraphics[width=90mm]{diagnostics/fm_leverage_plots.png}
+  \includegraphics[width=85mm]{diagnostics/fm_leverage_plots.png}
   \caption{Automated Model}
 \end{subfigure}
 \end{figure}
 
+```{r include=FALSE, message=FALSE, warning=FALSE, fig.show=FALSE}
+library("lattice")
+library("DAAG")
+arm_cv = cv.lm(data=market_train, form.lm=auto_regressive_model,
+               m=10, printit=F)
+fm_cv = cv.lm(data=market.tr, form.lm=final_model,
+              m=10, printit=F)
+
+nrmse <- function(mse, ylim) {
+  yrange = ylim[2] - ylim[1] 
+  sqrt(mse)/yrange
+}
+
+arm_nrmse = nrmse(attr(arm_cv, "ms"), range(market_train$AAPL)) 
+fm_nrmse = nrmse(attr(fm_cv, "ms"), range(market.tr$Return))
+```
+
 Once we had performed residual analysis and outlier detection, we performed cross validation for the two models to determine if they were overfitting. The $k$-fold cross validation method was used - with $k=10$ - and the $RMSE$ over the 10 folds was calculated. For the sake of comparison, since the models have different dependent variables and hence different scales, the $RMSE$ had to be normalized by dividing it by the range of the observed values. We denote this calculation as the $NRMSE$. 
 
-The autoregressive model has an $NRMSE$ of 0.00693, a value very close to 0, indicating that this model is a very good fit. While still being a well-fitted model, the automated model will generally produce less accurate predictions than the former model as it has a higher $NRMSE$ of 0.0706.
+The autoregressive model has an $NRMSE$ of `r arm_nrmse`, a value very close to 0, indicating that this model is a very good fit. While still being a well-fitted model, the automated model will generally produce less accurate predictions than the former model as it has a higher $NRMSE$ of `r fm_nrmse`.
 
-Add prediction analysis here
+We explored this claim by using the two models to predict responses for a test set of data, obtained by splitting the original dataset via an 80:20 split. The plots below are of the distributions of the error of prediction obtained from this test.
 
-Based on our aforementioned results, the final model we decided to choose was the automated model, i.e. $ Return = \beta_0 + \beta_1(log(VIX)^{-2}) + \beta_2AAPL2 + \beta_3(log(SPGSCITR)) + \beta_4EEM$. While both models are well-fitted with most of the linear regression assumptions satisified and no significant outliers, the residuals of the automated model are homoodastic and are closer to normality than those of the autoregressive model. In addition, though the autoregressive model is less overfitted than the automated model (as measured by the $NRMSE$), it is not by a significant difference. The paramters estimates and confidence interval of the final model are displayed below in the table below.
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=85mm]{diagnostics/prediction_histograms.png}
+  \captionsetup{labelformat=empty}
+  \caption{Prediction Error Histograms}
+\end{figure}
+
+The autoregressive model produces far more inaccurate results when predicting, with the value of the residual being as high as 6 in some cases. The autoselected model performs extremely well, producing a higher number of accurate predictions and a much smaller range of error.
+
+Based on our aforementioned results, the final model we decided to choose was the automated model, i.e. $ Return = \beta_0 + \beta_1(log(VIX)^{-2}) + \beta_2AAPL2 + \beta_3(log(SPGSCITR)) + \beta_4EEM$. While both models are well-fitted with most of the linear regression assumptions satisified and no significant outliers, the residuals of the automated model are homodastic and are closer to normality than those of the autoregressive model. In addition, though the autoregressive model is less overfitted than the automated model (as measured by the $NRMSE$), it is not by a significant difference and the automated model tends to produces more accurate predictions. The paramters estimates and confidence interval of the final model are displayed below in the table below.
 
 ```{r echo=FALSE}
 ci_df <- data.frame(round(confint(final_model), 4))
@@ -208,17 +232,13 @@ Below is a collection of R code used in this report.
 \end{section}
 
 ### Pre-process the data
-```{r}
+```{r eval=FALSE}
 market_origin <- read.csv("market_index_clean.csv")
 first <- market_origin[1,]
 market <- market_origin[2:3104,]
 market$AAPL2 <- market_origin[,"AAPL"][1:3103]
 market$Return <- (market$AAPL - market$AAPL2)/market$AAPL2
-```
 
-### Full Model
-```{r}
-library(lubridate)
 market$Date <- market_origin$Date[2:3104]
 date <- market$Date
 first <- date[1]
@@ -228,27 +248,38 @@ for(i in 1:length(date)) {
   day = c(day, diff)
 }
 market$Date <- day
+
+## Splitting the data into a training and test set (80/20)
+n <- length(market[,1])
+split <- round(0.8*n)
+market_train <- market[1:split,]
+market_test <- market[(split+1):n,]
+```
+
+### Full Model
+```{r eval=FALSE}
 full_model <- lm(Return~., data = market)
 summary(full_model)
 ```
 
+
 ### Null Model
-```{r}
+```{r eval=FALSE}
 null_model <- lm(Return~1, data = market)
 summary(null_model)
 ```
 
 ### Autoregressive Model
-```{r}
-autoregressive_model <- lm(AAPL~AAPL2, data = market)
+```{r eval=FALSE}
+autoregressive_model <- lm(AAPL~AAPL2, data = market_train)
 plot(fitted(autoregressive_model),residuals(autoregressive_model), 
      main = "Residual vs. Fitted", xlab = "Fitted Values", ylab = "Residuals")
 ```
 
 ### WLS Autoregressive Model
-```{r}
+```{r eval=FALSE}
 wts <-1/(fitted(lm(abs(residuals(autoregressive_model))~fitted(autoregressive_model)))^2)
-wls <- lm(market$AAPL~market$AAPL2, weights = wts)
+wls <- lm(market_train$AAPL~market$AAPL2, weights = wts)
 par(mfrow=c(1,2))
 plot(fitted(autoregressive_model), autoregressive_model$residuals, 
      main="unweighted", xlab = "fitted", ylab = "residuals")
@@ -258,52 +289,174 @@ plot(fitted(wls), wls$residuals, main="weighted", xlab = "fitted", ylab = "resid
 There is no apparent difference between the weighted least squares and the un-weighted autoregressive models.
 
 ### Correlation Matrix
-```{r}
-cor(market)
+```{r eval=FALSE}
+cor(market_train)
 ```
 
 ### Forward Selection
-```{r}
+```{r eval=FALSE}
 step(null_model, scope = list(upper=full_model), direction="forward")
-summary(lm(formula = Return ~ VIX + AAPL2 + AAPL + SPGSCITR, data = market))
+summary(lm(formula = Return ~ VIX + AAPL2 + AAPL + SPGSCITR, data = market_train))
 ```
 
 ### Backward Elimination
-```{r}
+```{r eval=FALSE}
 step(full_model, scope = list(lower=null_model), direction="backward")
-summary(lm(formula = Return ~ AAPL + VIX + SPGSCITR + AAPL2, data = market))
+summary(lm(formula = Return ~ AAPL + VIX + SPGSCITR + AAPL2, data = market_train))
 ```
 
 ### Stepwise Selection
-```{r}
+```{r eval=FALSE}
 step(null_model, scope = list(upper=full_model), direction="both")
 ```
 
 
 ### Forward Selection without AAPL
-```{r}
+```{r eval=FALSE}
 full_model <- lm(Return~SPX+VIX+SPGSCITR+BNDGLB+EEM+AAPL2, data = market)
 step(null_model, scope = list(upper=full_model), direction="forward")
 ```
 
 ### Backward Elimination without AAPL
-```{r}
+```{r eval=FALSE}
 step(full_model, scope = list(lower=null_model), direction="backward")
 ```
 
 ### Stepwise Selection without AAPL
-```{r}
+```{r eval=FALSE}
 step(null_model, scope = list(upper=full_model), direction="both")
 ```
 
 ### Log-transformed model from stepwise selection results
-```{r}
+```{r eval=FALSE}
 ## note that the VIX needed to be raised to the -2, after the log transformation
 ##  in order to obtain a distribution close to the Gaussian curve
-VIXtr <- log(market$VIX)^-2
-hist(VIXtr)
-SPGSCITRtr <- log(market$SPGSCITR)
-hist(SPGSCITRtr)
-transformed_model <- lm(market$Return~VIXtr+SPGSCITRtr+market$EEM+market$AAPL2)
+market.tr <- market
+market.tr$VIXtr <- log(market$VIX)^(-2)
+market.tr$SPGSCITRtr <- log(market$SPGSCITR)
+market.tr_train <- market.tr[1:split,]
+market.tr_test <- market.tr[(split+1):n,]
+
+transformed_model <- lm(Return~VIXtr+AAPL2+SPGSCITRtr+EEM, data=market.tr_train)
 summary(transformed_model)
+```
+
+### Function for plotting diagnostic tools
+```{r eval=FALSE}
+diagnostic_plots <- function(model) {
+  p <- length(model$coef) - 1 # the number of covariates in the model
+  nrows <- p%/%2
+  savepar <- par(mfrow=c(1,1))
+  if (nrows > 0) {
+    savepar <- par(mfrow=c(nrows, 2))
+  }
+  
+  # Partial Residual v.s. Covariates Plot
+  savepar
+  crPlots(model, ylab="Partial Residual", smooth=T,
+          main='')
+  title("Partial Residual Plots", 
+        outer=T, line=-1)
+  
+  # Q-Q Plot and Residual v.s. Fitted Plot 
+  par(mfrow=c(1,2))
+  plot(model, which=c(1,2))
+  title(paste("Model Diagnostics"),
+        outer=T, line=-1)
+  
+  ## Leverage Plots
+  par(mfrow=c(1,2))
+  plot(model, which=c(4,5))
+  title(paste("Leverage Plots"),
+        outer=T, line=-1)
+}
+
+diagnostic_plots(autoregressive_model)
+diagnostic_plots(transformed_model)
+```
+
+### ACF Plots for the Residuals
+```{r eval=FALSE}
+## Correlation calculations and plot
+## Using ACF Plots instead of scatterplot matrix
+png('arm_acf_residuals.png')
+acf(resid(auto_regressive_model), main='', lag.max=10)
+title("Autocorrelation Function of Residuals", 
+      outer=T, line=-1)
+dev.off()
+
+## Using ACF Plots instead of scatterplot matrix
+png('fm_acf_residuals.png')
+acf(resid(final_model), main='', lag.max=10)
+title("Autocorrelation Function of Residuals", 
+      outer=T, line=-1)
+dev.off()
+```
+
+### Durbin-Watson Test for autocorrelation
+```{r eval=FALSE}
+library(magrittr)
+library(knitr)
+library(kableExtra)
+
+fm_dwtest <- dwtest(transformed_model, alternative=c("two.sided"), 
+                   data=market.tr_train)
+arm_dwtest <- dwtest(auto_regressive_model, 
+                    alternative=c("two.sided"), data=market_train)
+
+dwtest_dt <- data.frame(
+  c(fm_dwtest$statistic, arm_dwtest$statistic),
+  c(fm_dwtest$p.value, arm_dwtest$p.value)
+)
+rownames(dwtest_dt) = c('Autoregressive', 'Automated')
+colnames(dwtest_dt) = c('Test Statistic', 'p-value')
+
+kable(dwtest_dt, "latex") %>%
+  kable_styling(full_width = F) %>%
+  add_footnote(paste("alternative:",fm_dwtest$alternative), 
+               notation = "symbol")
+```
+
+### Cross-validation and calculation of the Normalized RMSE
+```{r eval=FALSE, message=FALSE, warning=FALSE, fig.show=FALSE}
+library("lattice")
+library("DAAG")
+arm_cv = cv.lm(data=market_train, form.lm=auto_regressive_model,
+               m=10, printit=F)
+fm_cv = cv.lm(data=market.tr, form.lm=final_model,
+              m=10, printit=F)
+
+nrmse <- function(mse, ylim) {
+  yrange = ylim[2] - ylim[1] 
+  sqrt(mse)/yrange
+}
+
+arm_nrmse = nrmse(attr(arm_cv, "ms"), range(market_train$AAPL)) 
+fm_nrmse = nrmse(attr(fm_cv, "ms"), range(market.tr$Return))
+```
+
+### Predicting the response on the test dataset
+```{r eval=FALSE, fig.height=4, fig.width=8}
+arm_preds = predict(autoregressive_model, market_test) 
+fm_preds = predict(transformed_model, market.tr_test)
+arm_test_resids = market_test[,'AAPL'] - arm_preds
+fm_test_resids = market.tr_test[,'Return'] - fm_preds
+
+## Plots of the residuals from prediction
+par(mfrow=c(1,2))
+hist(arm_test_resids, xlab='Residuals', cex=13,
+     main="Autoregressive Model")
+hist(fm_test_resids, xlab='Residuals',
+     main="Autoselected Model")
+```
+
+### Parameter Estimates and CI of Final Model
+```{r eval=FALSE}
+ci_df <- data.frame(round(confint(transformed_model), 4))
+ci_df['Estimate'] <- unname(transformed_model$coef)
+intervals = paste(ci_df[,1], ci_df[,2], sep=', ')
+ci_df['Intervals'] = paste0('[', intervals , ']')
+ci_df[,1:2] = NULL
+kable(ci_df, "latex") %>%
+  kable_styling(full_width = F)
 ```
