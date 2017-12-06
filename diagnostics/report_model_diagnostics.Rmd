@@ -1,0 +1,139 @@
+---
+title: "Model Diagnostics"
+author: "Azoacha Forcheh, 20558994"
+date: '2017-12-05'
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(car)
+library(lmtest)
+library(knitr)
+library(kableExtra)
+```
+
+```{r Loading the data}
+market_origin <- read.csv("../market_index_clean.csv")
+first <- market_origin[1,]
+market <- market_origin[2:3104,]
+market$AAPL2 <- market_origin[,"AAPL"][1:3103]
+market$Return <- (market$AAPL - market$AAPL2)/market$AAPL2
+
+market$Date <- market_origin$Date[2:3104]
+date <- market$Date
+first <- date[1]
+day <- c()
+for(i in 1:length(date)) {
+  diff = round(difftime(date[i], first))
+  day = c(day, diff)
+}
+market$Date <- day
+```
+
+
+```{r Code for Plots and Diagnostics}
+diagnostic_plots <- function(model) {
+  p <- length(model$coef) - 1 # the number of covariates in the model
+  nrows <- p%/%2
+  savepar <- par(mfrow=c(1,1))
+  if (nrows > 0) {
+    savepar <- par(mfrow=c(nrows, 2))
+  }
+  
+  # Partial Residual v.s. Covariates Plot
+  savepar
+  crPlots(model, ylab="Partial Residual", smooth=T,
+          main='')
+  title("Partial Residual Plots", 
+        outer=T, line=-1)
+  
+  # Q-Q Plot and Residual v.s. Fitted Plot 
+  par(mfrow=c(1,2))
+  plot(model, which=c(1,2))
+  title(paste("Model Diagnostics"),
+        outer=T, line=-1)
+  
+  ## Leverage Plots
+  par(mfrow=c(1,2))
+  plot(model, which=c(4,5))
+  title(paste("Leverage Plots"),
+        outer=T, line=-1)
+}
+
+```
+
+
+```{r Diagnostics on the Autoregressive Model, fig.height=4, fig.width=6}
+auto_regressive_model <- lm(AAPL~AAPL2, data=market)
+#summary(auto_regressive_model)
+diagnostic_plots(auto_regressive_model)
+```
+
+
+```{r Diagnostics on the Final Model, fig.height=4, fig.width=6}
+market.tr = market
+market.tr$VIXtr = log(market$VIX)^(-2)
+market.tr$SPGSCITRtr = log(market$SPGSCITR)
+final_model <- lm(Return~VIXtr+AAPL2+SPGSCITRtr+EEM, data=market.tr)
+#summary(final_model)
+
+diagnostic_plots(final_model)
+```
+
+
+```{r Autocorrelation Check}
+## Correlation calculations and plot
+## Using ACF Plots instead of scatterplot matrix
+png('arm_acf_residuals.png')
+acf(resid(auto_regressive_model), main='', lag.max=10)
+title("Autocorrelation Function of Residuals", 
+      outer=T, line=-1)
+dev.off()
+
+## Using ACF Plots instead of scatterplot matrix
+png('fm_acf_residuals.png')
+acf(resid(final_model), main='', lag.max=10)
+title("Autocorrelation Function of Residuals", 
+      outer=T, line=-1)
+dev.off()
+
+fm_dwtest = dwtest(final_model, alternative=c("two.sided"), 
+                   data=market.tr)
+arm_dwtest = dwtest(auto_regressive_model, 
+                    alternative=c("two.sided"), data=market)
+fm_dwtest$statistic
+arm_dwtest$statistic
+fm_dwtest$p.value
+arm_dwtest$p.value
+```
+
+```{r Cross Validation echo=FALSE, message=FALSE}
+library("lattice")
+library("DAAG")
+arm_cv = cv.lm(data=market, form.lm=auto_regressive_model,
+               m=10, printit=F)
+fm_cv = cv.lm(data=market.tr, form.lm=final_model,
+              m=10, printit=F)
+
+nrmse <- function(mse, ylim) {
+  yrange = ylim[2] - ylim[1] 
+  sqrt(mse)/yrange
+}
+
+nrmse(attr(arm_cv, "ms"), range(market$AAPL)) 
+nrmse(attr(fm_cv, "ms"), range(market.tr$Return))
+```
+
+
+```{r Parameter Estimates and CI of Final Model}
+ci_df <- data.frame(round(confint(final_model), 4))
+ci_df['Estimate'] <- unname(final_model$coef)
+intervals = paste(ci_df[,1], ci_df[,2], sep=', ')
+ci_df['Intervals'] = paste0('[', intervals , ']')
+ci_df[,1:2] = NULL
+ci_df
+```
+
+
+

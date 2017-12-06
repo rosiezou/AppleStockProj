@@ -1,9 +1,20 @@
 ---
 title: \bf{Project B Report}
-output: 
-  pdf_document: 
+output:
+  pdf_document:
+    fig_caption: yes
+    keep_tex: yes
     latex_engine: xelatex
+  html_document:
+    mathjax: local
+    self_contained: no
+graphics: yes
+header-includes:
+  - \usepackage{graphicx}
+  - \usepackage{caption}
+  - \usepackage{subcaption}
 ---
+
 \begin{section}{Delete this section before submitting}
 These are the three questions specific to Project B. We need to find appropriate sections to answer these questions (and make it clear that we're answering them so that the TA gives us marks)
 \begin{enumerate}
@@ -63,6 +74,129 @@ Additionally, we considered how the distribution of the independent variables co
 \end{section}
 
 \begin{section}{Model Diagnostics}
+
+We first look into some diagnostic plots of the two models for the sake of residual analysis and outlier detection.
+
+\begin{figure}[h]
+\begin{subfigure}{.5\textwidth}
+  \includegraphics[width=90mm]{diagnostics/arm_covar_residuals.png}
+  \caption{Autoregressive Model}
+\end{subfigure}%
+\begin{subfigure}{.5\textwidth}
+  \includegraphics[width=90mm]{diagnostics/fm_covar_residuals.png}
+  \caption{Automated Model}
+\end{subfigure}
+\end{figure}
+
+There is a strong linear trend in the partial residual plot of the autoregressive model, and no deviation from the straight line. We see this trend with the covariates of the automated model as well, with only the `EEM` covariate and the log-transformed `VIX` displaying a small amount of deviation from the straight line. Hence, the assumption of linearity is satisfied for both models.
+
+\begin{figure}[h]
+\begin{subfigure}{.5\textwidth}
+  \includegraphics[width=90mm]{diagnostics/arm_model_plots.png}
+  \caption{Autoregressive Model}
+\end{subfigure}%
+\begin{subfigure}{.5\textwidth}
+  \includegraphics[width=90mm]{diagnostics/fm_model_plots.png}
+  \caption{Automated Model}
+\end{subfigure}
+\end{figure}
+
+The residuals of the autoregressive model are heterodastic as the plot of the residuals versus the fitted values has a fan-shaped pattern. In addition, the Q-Q plot of the residuals is heavy-tailed and exhibits curvature. In comparison, the plot of the residuals versus the fitted values of the automated model has more randomness than and lacks the fan-shaped pattern indicative of heterodasticity, and the Q-Q plot, while still being heavy-tailed, follows the linear trend more closely. Hence, the automated model produces errors that satisfy the assumption of constant error variance and that have non-normality that might be reasonably ignored, while the plots of the autoregressive model indicate that there are non-constant variances of the error and non-normality that we may be able to fix.
+
+
+\begin{figure}[h]
+\begin{subfigure}{.5\textwidth}
+  \includegraphics[width=90mm]{diagnostics/arm_acf_residuals.png}
+  \caption{Autoregressive Model}
+\end{subfigure}%
+\begin{subfigure}{.5\textwidth}
+  \includegraphics[width=90mm]{diagnostics/fm_acf_residuals.png}
+  \caption{Automated Model}
+\end{subfigure}
+\end{figure}
+
+We then looked into the last assumption of linear regression models: independence of the errors. As the stock data was time-series data and contained serial correlation, a scatterplot matrix was ruled out as a useful tool for detecting correlation. We instead considered ACF plots of the residuals, in combination with the results of the Durbin-Watson test. As can be seen in the ACF plots above, both models have explained away the autocorrelation in the residuals very well, as almost all of the sample correlations are within the limits. The results of the Durbin-Watson test on the models (shown in the table below) confirms this: for both models, the $p$-value of the test is high enough to accept the null hypothesis that there is no autocorrelation between the residuals.
+
+
+```{r echo=FALSE, message=FALSE}
+market_origin <- read.csv("market_index_clean.csv")
+first <- market_origin[1,]
+market <- market_origin[2:3104,]
+market$AAPL2 <- market_origin[,"AAPL"][1:3103]
+market$Return <- (market$AAPL - market$AAPL2)/market$AAPL2
+
+library(lubridate)
+market$Date <- market_origin$Date[2:3104]
+date <- market$Date
+first <- date[1]
+day <- c()
+for(i in 1:length(date)) {
+  diff = round(difftime(date[i], first))
+  day = c(day, diff)
+}
+market$Date <- day
+
+auto_regressive_model <- lm(AAPL~AAPL2, data=market)
+market.tr = market
+market.tr$VIXtr = log(market$VIX)^(-2)
+market.tr$SPGSCITRtr = log(market$SPGSCITR)
+final_model <- lm(Return~VIXtr+AAPL2+SPGSCITRtr+EEM, data=market.tr)
+
+library(lmtest)
+fm_dwtest = dwtest(final_model, alternative=c("two.sided"), 
+                   data=market.tr)
+arm_dwtest = dwtest(auto_regressive_model, 
+                    alternative=c("two.sided"), data=market)
+```
+
+```{r echo=FALSE, message=FALSE}
+library(magrittr)
+library(knitr)
+library(kableExtra)
+dwtest_dt <- data.frame(
+  c(fm_dwtest$statistic, arm_dwtest$statistic),
+  c(fm_dwtest$p.value, arm_dwtest$p.value)
+)
+rownames(dwtest_dt) = c('Autoregressive', 'Automated')
+colnames(dwtest_dt) = c('Test Statistic', 'p-value')
+
+kable(dwtest_dt, "latex") %>%
+  kable_styling(full_width = F) %>%
+  add_footnote(paste("alternative:",fm_dwtest$alternative), 
+               notation = "symbol")
+```
+
+The next concern we addressed was potential outliers and high-leverage cases. In both Cook's Distance plots below, there are no concerning observations that have a distance greater than 1, but most observations have a Cook's Distance greater than $p/n$, which is $0.0013$ and $0.00032$ for the automated and the autoregressive model, respectively. However, we see in both Residuals versus Leverage plots that there are no cases that are influential to the regression results. All points are well enough within the Cook's distance lines that said lines do not appear on either plot.
+
+\begin{figure}[h]
+\begin{subfigure}{.5\textwidth}
+  \includegraphics[width=90mm]{diagnostics/arm_leverage_plots.png}
+  \caption{Autoregressive Model}
+\end{subfigure}%
+\begin{subfigure}{.5\textwidth}
+  \includegraphics[width=90mm]{diagnostics/fm_leverage_plots.png}
+  \caption{Automated Model}
+\end{subfigure}
+\end{figure}
+
+Once we had performed residual analysis and outlier detection, we performed cross validation for the two models to determine if they were overfitting. The $k$-fold cross validation method was used - with $k=10$ - and the $RMSE$ over the 10 folds was calculated. For the sake of comparison, since the models have different dependent variables and hence different scales, the $RMSE$ had to be normalized by dividing it by the range of the observed values. We denote this calculation as the $NRMSE$. 
+
+The autoregressive model has an $NRMSE$ of 0.00693, a value very close to 0, indicating that this model is a very good fit. While still being a well-fitted model, the automated model will generally produce less accurate predictions than the former model as it has a higher $NRMSE$ of 0.0706.
+
+Add prediction analysis here
+
+Based on our aforementioned results, the final model we decided to choose was the automated model, i.e. $ Return = \beta_0 + \beta_1(log(VIX)^{-2}) + \beta_2AAPL2 + \beta_3(log(SPGSCITR)) + \beta_4EEM$. While both models are well-fitted with most of the linear regression assumptions satisified and no significant outliers, the residuals of the automated model are homoodastic and are closer to normality than those of the autoregressive model. In addition, though the autoregressive model is less overfitted than the automated model (as measured by the $NRMSE$), it is not by a significant difference. The paramters estimates and confidence interval of the final model are displayed below in the table below.
+
+```{r echo=FALSE}
+ci_df <- data.frame(round(confint(final_model), 4))
+ci_df['Estimate'] <- unname(final_model$coef)
+intervals = paste(ci_df[,1], ci_df[,2], sep=', ')
+ci_df['Intervals'] = paste0('[', intervals , ']')
+ci_df[,1:2] = NULL
+kable(ci_df, "latex") %>%
+  kable_styling(full_width = F)
+```
+
 \end{section}
 
 \begin{section}{Discussion}
