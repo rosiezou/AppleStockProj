@@ -1,5 +1,10 @@
 ---
 title: \bf{Project B Report}
+author:
+  - \text{Rosie Zou (20588049)}
+  - \text{Simon Guo (20600133)}
+  - \text{Azoacha Forcheh (20558994)}
+subtitle: 'STAT 331, Fall 2017'
 output:
   pdf_document:
     fig_caption: yes
@@ -13,6 +18,7 @@ header-includes:
   - \usepackage{graphicx}
   - \usepackage{caption}
   - \usepackage{subcaption}
+  - \usepackage{float}
 ---
 
 \begin{section}{Summary}
@@ -64,7 +70,7 @@ Additionally, we considered how the distribution of the independent variables co
 
 We first look into some diagnostic plots of the two models for the sake of residual analysis and outlier detection.
 
-\begin{figure}[h]
+\begin{figure}[H]
 \begin{subfigure}{.5\textwidth}
   \includegraphics[width=85mm]{diagnostics/arm_covar_residuals.png}
   \caption{Autoregressive Model}
@@ -77,7 +83,9 @@ We first look into some diagnostic plots of the two models for the sake of resid
 
 There is a strong linear trend in the partial residual plot of the autoregressive model, and no deviation from the straight line. We see this trend with the covariates of the automated model as well, with only the `EEM` covariate and the log-transformed `VIX` displaying a small amount of deviation from the straight line. Hence, the assumption of linearity is satisfied for both models.
 
-\begin{figure}[h]
+The residuals of the autoregressive model are heteroscedastic as the plot of the residuals versus the fitted values has a fan-shaped pattern. In addition, the Q-Q plot of the residuals is heavy-tailed and exhibits curvature. In comparison, the plot of the residuals versus the fitted values of the automated model has more randomness and lacks the fan-shaped pattern indicative of heteroscedasticity; the Q-Q plot, while still being heavy-tailed, follows the linear trend more closely. 
+
+\begin{figure}[H]
 \begin{subfigure}{.5\textwidth}
   \includegraphics[width=85mm]{diagnostics/arm_model_plots.png}
   \caption{Autoregressive Model}
@@ -88,10 +96,10 @@ There is a strong linear trend in the partial residual plot of the autoregressiv
 \end{subfigure}
 \end{figure}
 
-The residuals of the autoregressive model are heterodastic as the plot of the residuals versus the fitted values has a fan-shaped pattern. In addition, the Q-Q plot of the residuals is heavy-tailed and exhibits curvature. In comparison, the plot of the residuals versus the fitted values of the automated model has more randomness than and lacks the fan-shaped pattern indicative of heterodasticity, and the Q-Q plot, while still being heavy-tailed, follows the linear trend more closely. Hence, the automated model produces errors that satisfy the assumption of constant error variance and that have non-normality that might be reasonably ignored, while the plots of the autoregressive model indicate that there are non-constant variances of the error and non-normality that we may be able to fix.
+Hence, the automated model produces errors that satisfy the assumption of constant error variance and that have non-normality that might be reasonably ignored, while the plots of the autoregressive model indicate that there are non-constant variances of the error and non-normality that we may be able to fix.
 
 
-\begin{figure}[h]
+\begin{figure}[H]
 \begin{subfigure}{.5\textwidth}
   \includegraphics[width=85mm]{diagnostics/arm_acf_residuals.png}
   \caption{Autoregressive Model}
@@ -166,7 +174,7 @@ kable(dwtest_dt, "latex") %>%
 
 The next concern we addressed was potential outliers and high-leverage cases. In both Cook's Distance plots below, there are no concerning observations that have a distance greater than 1, but most observations have a Cook's Distance greater than $\frac{p}{n}$, which is 0.001612 and 0.000403 for the automated and the autoregressive model, respectively. However, we see in both Residuals versus Leverage plots that there are no cases that are influential to the regression results. All points are well enough within the Cook's distance lines that said lines do not appear on either plot.
 
-\begin{figure}[h]
+\begin{figure}[H]
 \begin{subfigure}{.5\textwidth}
   \includegraphics[width=85mm]{diagnostics/arm_leverage_plots.png}
   \caption{Autoregressive Model}
@@ -200,7 +208,7 @@ The autoregressive model has an $NRMSE$ of `r arm_nrmse`, a value very close to 
 
 We explored this claim by using the two models to predict responses for a test set of data, obtained by splitting the original dataset via an 80:20 split. The plots below are of the distributions of the error of prediction obtained from this test.
 
-\begin{figure}[h]
+\begin{figure}[H]
   \centering
   \includegraphics[width=85mm]{diagnostics/prediction_histograms.png}
   \captionsetup{labelformat=empty}
@@ -209,7 +217,9 @@ We explored this claim by using the two models to predict responses for a test s
 
 The autoregressive model produces far more inaccurate results when predicting, with the value of the residual being as high as 6 in some cases. The autoselected model performs extremely well, producing a higher number of accurate predictions and a much smaller range of error.
 
-Based on our aforementioned results, the final model we decided to choose was the automated model, i.e. $ Return = \beta_0 + \beta_1(log(VIX)^{-2}) + \beta_2AAPL2 + \beta_3(log(SPGSCITR)) + \beta_4EEM$. While both models are well-fitted with most of the linear regression assumptions satisified and no significant outliers, the residuals of the automated model are homodastic and are closer to normality than those of the autoregressive model. In addition, though the autoregressive model is less overfitted than the automated model (as measured by the $NRMSE$), it is not by a significant difference and the automated model tends to produces more accurate predictions. The paramters estimates and confidence interval of the final model are displayed below in the table below.
+Based on our aforementioned results, the final model we decided to choose was the automated model, i.e. $ Return = \beta_0 + \beta_1(log(VIX)^{-2}) + \beta_2AAPL2 + \beta_3(log(SPGSCITR)) + \beta_4EEM$. While both models are well-fitted with most of the linear regression assumptions satisified and no significant outliers, the residuals of the automated model are homoscedastic and are closer to normality than those of the autoregressive model. In addition, though the autoregressive model is less overfitted than the automated model (as measured by the $NRMSE$), it is not by a significant difference and the automated model tends to produces more accurate predictions. 
+
+The paramters estimates and confidence interval of the final model are displayed in the table below.
 
 ```{r echo=FALSE}
 ci_df <- data.frame(round(confint(final_model), 4))
@@ -221,9 +231,54 @@ kable(ci_df, "latex") %>%
   kable_styling(full_width = F)
 ```
 
+We conclude that neither model is a good enough fit. However, while the automated model has a low Adjusted $R^2$, it predicts very accurately and is a strong model otherwise. Given more time and resources, we could potentially develop a better model using the knowledge we now have about the relationship between the covariates and the response. 
+
+For example, an artificial neural net could be implemented instead, especially as this is a popular method for predicting stock returns and there is more research that can be considered during implementation. Alternatively, we could build on the autoregressive model to create an ARIMA model, which a good choice of model for time series data such as this.
+
 \end{section}
 
 \begin{section}{Discussion}
+
+We answer the questions posed to us in the Instructions file in this section.
+
+\begin{enumerate}
+\item{}
+\textit {What are the most important factors affecting Apple Stock returns?}
+
+According to the results from the R code below, we can check the $p$-values for the significance of coefficients with the corresponding covariates. For the transformed model, $VIX$ term has the lowest $p$-value as shown in the summary, which means it would make largest change to the response if it drops out of the model; while $AAPL2$ term, which is the pervious day's price, and $SPGSCITR$ term's coefficients ealso have relatively small $p$-values. For our selected model before transformation, $VIX$ has the lowest p-value as well, and again $AAPL2$ and $SPGSCITR$ terms' coefficients have considerably small $p$-values too.  So based on our models, $VIX$ would be the most important factor, and $SPGSCITR$ and $AAPL2$ are considerably significant as well. 
+
+\item{}
+\textit {Does including information for several days ago have much of an impact on tomorrow’s return, if we account for today’s information?}
+
+As shown in the R code in the Appendix, after attempting to instead of using previous day's price to calculate return, we take the average of the previous 5 days' stock prices and still fitting the same transformed model. Comparing to original transformed model, the performance of the model seems to be better in temrs of coefficient of determination and the AIC values, while there is a small increase in adjusted $R^2$ and a small decrease for AIC. So it seems that from our attempt, including information for several days ago would give a better model fitting the tomorrow's return, while we are still accounting for today's information.
+
+\item{}
+\textit {Does the model predict accurately?}
+
+Based on our results on our k-fold cross validation with the comparsion of training and testing sets of data, the model performs generally well for prediction accuracy. Although in the summary of the model, the coefficient of determination is not ideally high, as we have discussed in class and the fact that $R^2$ can be affected by other factors (such as number of variables that are involved), so it would be acceptable to say that the model predicts the future value with reasonably accurate results. 
+
+\item{}
+\textit {Are there any coefficients with high $p$-values retained in the final model? If so, why?}
+
+According our models, fortunately we don't have any coefficients with high $p$-values retained in the final model. All of the coefficients have descent $p$-values that are lower than 0.05.
+
+\item{}
+\textit {Are any of the regression assumptions of the final model violated? If so, which ones?}
+
+This question has been mentioned along with the Model Diagnostics part. All of the regression assumptions seems to be satisfied by our final model, instead of there is a little bit bias on the independence of residuals.
+
+\item{}
+\textit {What are the possible deficiencies of the final model? How the model can be improved?}
+
+As discussed in previous analysis part, and also by looking at the residual plots and the summary of aborted models, the data has a tendency to be fitting a non-linear model. For example, there is a curved trend for the residual against fitted values plot, even after the chosen transformation. And notice that from the R results we can see that the adjusted and unadjusted coefficients of determination is very small and not close to 1 at all, which is not ideal as well. To improve the fittness of the model, it might make more sense to fit a non-linear model instead. Alternatively, there is the option of adding more covariates to the model, but that would increase the possiblity of overfitting the model.  
+
+\item{}
+\textit {Are there any outlying observations that might be appropriate to remove?}
+
+By judging from the results of residual plots and leverage plots, it can be seen that there seems to have several outliers concentrated around the year 2008, which has the index 1370. The possible reason for the outlying results could be the finacial crisis during that time that would cause the drop in variates' values, but AAPL stock price didn't be affected that much, possible explanation could be the release of new series of iPhone which sort of stablize the change in stock price for Apple. Under such circumstance, there might exist possible reasons for the unexpected change, here it would be more reasonable to ignore the outlying results, as it is not really "unexpected" or it is abnormal. Therefore, it would not be appropriate to remove these values.
+
+\end{enumerate}
+
 \end{section}
 
 \newpage
@@ -459,4 +514,25 @@ ci_df['Intervals'] = paste0('[', intervals , ']')
 ci_df[,1:2] = NULL
 kable(ci_df, "latex") %>%
   kable_styling(full_width = F)
+```
+
+### The impact of including more data from previous days
+```{r eval=FALSE}
+## suppose we include previous 5 days data information
+
+## attempt to using the average value of previous 5 days AAPL
+AAPL5 <- c()
+for (i in 1:(nrow(market_origin) - 4)){
+  set <- c(market_origin$AAPL[i], market_origin$AAPL[i+1], market_origin$AAPL[i+2], market_origin$AAPL[i+3], market_origin$AAPL[i+4])
+  AAPL5 <- c(AAPL5, mean(set))
+}
+new_AAPL = market$AAPL[4:length(market$AAPL)]
+new_Return <- (new_AAPL - AAPL5)/new_AAPL
+new_VIXtr = VIXtr[4:length(VIXtr)]
+new_SPGSCITRtr = SPGSCITRtr[4:length(SPGSCITRtr)]
+new_EEM = market$EEM[4:length(market$EEM)]
+new_transformed_model <- lm(new_Return~new_VIXtr+new_SPGSCITRtr+new_EEM+AAPL5)
+summary(new_transformed_model)
+AIC(new_transformed_model)
+AIC(transformed_model)
 ```
